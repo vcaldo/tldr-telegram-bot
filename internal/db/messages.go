@@ -2,7 +2,6 @@ package db
 
 import (
 	"database/sql"
-	"log"
 	"time"
 )
 
@@ -36,7 +35,6 @@ func GetMessages(db *sql.DB, messageID int64, groupID int64) ([]Message, error) 
 		  WHERE group_id = $1 AND timestamp BETWEEN $2 AND ($2 + interval '10 minutes')
 		  ORDER BY timestamp ASC LIMIT 1000`
 
-	log.Default().Printf("Query: %s, GroupID: %d, Timestamp: %v", query, groupID, firstMessageTimestamp)
 	rows, err := db.Query(query, groupID, firstMessageTimestamp)
 	if err != nil {
 		return nil, err

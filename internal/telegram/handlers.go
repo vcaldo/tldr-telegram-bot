@@ -3,7 +3,6 @@ package telegram
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"strings"
 
 	"tldr-telegram-bot/internal/config"
@@ -100,16 +99,13 @@ func formatMessages(messages []db.Message) string {
 	var sb strings.Builder
 	for _, msg := range messages {
 		sender := msg.Username
-		if sender == "" {
-			if msg.Name != "" {
-				sender = msg.Name
-				if msg.LastName != "" {
-					sender = fmt.Sprintf("%s %s", sender, msg.LastName)
-				}
-			} else {
-				// Fallback to user ID if no name or username is available
-				sender = strconv.FormatInt(msg.UserID, 10)
-			}
+		switch {
+		case msg.Name != "" && msg.LastName != "":
+			sender = fmt.Sprintf("%s %s", msg.Name, msg.LastName)
+		case msg.Name != "":
+			sender = msg.Name
+		case msg.LastName != "":
+			sender = msg.LastName
 		}
 		sb.WriteString(fmt.Sprintf("%s: %s\n", sender, msg.Content))
 	}
