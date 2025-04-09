@@ -1,0 +1,41 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - ollama
+      - postgres
+    volumes:
+      - .env:/root/.env
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    env_file:
+      - .env
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mydb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  default:
+    driver: bridge
