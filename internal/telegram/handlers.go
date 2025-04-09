@@ -7,6 +7,7 @@ import (
 
 	"tldr-telegram-bot/internal/config"
 	"tldr-telegram-bot/internal/db"
+	"tldr-telegram-bot/internal/llm"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -18,14 +19,11 @@ func HandleMessage(update tgbotapi.Update) {
 		return
 	}
 
-	log.Printf("Received message: %s", update.Message.Text)
-
 	if !isAuthorizedGroup(update.Message.Chat.ID) {
 		logUnauthorizedAttempt(update.Message.Chat.ID)
 		return
 	}
 
-	log.Printf("Reply message text: %s", update.Message.ReplyToMessage.Text)
 	if isTriggerWord(update.Message.Text) {
 		log.Printf("Trigger word detected in group %d", update.Message.Chat.ID)
 		collectAndSummarizeMessages(update)
@@ -83,16 +81,17 @@ func collectAndSummarizeMessages(update tgbotapi.Update) {
 	}
 
 	concatenatedText := formatMessages(messages)
+	concatenatedText = strings.ReplaceAll(concatenatedText, "\n", " ")
+	concatenatedText = strings.TrimSpace(concatenatedText)
 
 	fmt.Println("Concatenated text for summarization:", concatenatedText)
-	// summary, err := llm.Summarize(concatenatedText, myConfig.OllamaModel)
-	// if err != nil {
-	// 	log.Printf("Error summarizing messages: %v", err)
-	// 	return
-	// }
+	summary, err := llm.Summarize(concatenatedText, myConfig.Lang)
+	if err != nil {
+		log.Printf("Error summarizing messages: %v", err)
+		return
+	}
 
-	// sendSummary(update.Message.Chat.ID, summary)
-	sendSummary(update.Message.Chat.ID, fmt.Sprintf("%s - %s", myConfig.OllamaModel, concatenatedText))
+	sendSummary(update.Message.Chat.ID, summary)
 }
 
 func formatMessages(messages []db.Message) string {

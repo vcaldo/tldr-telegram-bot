@@ -1,17 +1,19 @@
 package llm
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
-const ollamaAPIURL = "http://ollama:11434/api/generate"
-
-// Summarize sends a request to the Ollama LLM server to summarize the provided text based on the specified language.
+// Summarize sends a request to the Ollama LLM server and waits until done is true.
 func Summarize(text string, lang string) (string, error) {
+	ollamaAPIURL := os.Getenv("OLLAMA_API_URL")
 	model := os.Getenv("OLLAMA_MODEL")
 	if model == "" {
 		return "", fmt.Errorf("OLLAMA_MODEL environment variable is not set")
@@ -37,14 +39,43 @@ func Summarize(text string, lang string) (string, error) {
 		return "", fmt.Errorf("received non-200 response from Ollama API: %s", resp.Status)
 	}
 
-	var response map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return "", fmt.Errorf("failed to decode response from Ollama API: %v", err)
+	var summary string
+	scanner := bufio.NewScanner(resp.Body)
+	// Opcional: definir um timeout se necessário
+	done := false
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		var partial map[string]interface{}
+		if err := json.Unmarshal(line, &partial); err != nil {
+			log.Printf("failed to unmarshal chunk: %v", err)
+			continue
+		}
+		log.Printf("Partial response from Ollama API: %v", partial)
+
+		// Atualiza o summary se houver "response"
+		if r, ok := partial["response"].(string); ok {
+			summary = r
+		}
+
+		// Verifica se o processamento foi finalizado.
+		if d, ok := partial["done"].(bool); ok && d {
+			done = true
+			break
+		}
 	}
 
-	summary, ok := response["summary"].(string)
-	if !ok {
-		return "", fmt.Errorf("summary not found in response")
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("error reading response: %v", err)
+	}
+
+	// Se não encontrou summary ou processing não terminou, podemos esperar um pouquinho
+	// ou retornar erro, conforme sua estratégia.
+	if !done {
+		// Pode aguardar um tempo adicional aqui se preferir, por exemplo:
+		time.Sleep(2 * time.Second)
+		if summary == "" {
+			return "", fmt.Errorf("summary not found in response after waiting")
+		}
 	}
 
 	return summary, nil
@@ -54,12 +85,12 @@ func Summarize(text string, lang string) (string, error) {
 func constructPrompt(text string, lang string) string {
 	switch lang {
 	case "pt":
-		return fmt.Sprintf("Resuma a seguinte Telegram chat in Portuguese:\n%s", text)
+		return fmt.Sprintf("Resuma a seguinte conversa do Telegram em Português:\n%s", text)
 	case "en":
 		return fmt.Sprintf("Summarize the following Telegram chat in English:\n%s", text)
 	case "es":
 		return fmt.Sprintf("Resume el siguiente Telegram chat en español:\n%s", text)
 	default:
-		return text // Fallback to plain text if language is unknown
+		return text // fallback para texto puro
 	}
 }

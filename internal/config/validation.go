@@ -23,9 +23,9 @@ func Validate() error {
 	}
 
 	// Validate DEFAULT_LANG
-	defaultLang := os.Getenv("DEFAULT_LANG")
-	if !isValidLanguage(defaultLang) {
-		return errors.New("invalid DEFAULT_LANG value: " + defaultLang)
+	Lang := os.Getenv("DEFAULT_LANG")
+	if !isValidLanguage(Lang) {
+		return errors.New("invalid DEFAULT_LANG value: " + Lang)
 	}
 
 	// Validate AUTHORIZED_GROUPS

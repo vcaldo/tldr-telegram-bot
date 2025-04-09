@@ -11,7 +11,7 @@ import (
 
 type Config struct {
 	TelegramBotToken string
-	DefaultLang      string
+	Lang             string
 	OllamaModel      string
 	AuthorizedGroups []int64
 }
@@ -27,7 +27,7 @@ func LoadConfig() (*Config, error) {
 
 	return &Config{
 		TelegramBotToken: os.Getenv("TELEGRAM_BOT_TOKEN"),
-		DefaultLang:      os.Getenv("DEFAULT_LANG"),
+		Lang:             os.Getenv("DEFAULT_LANG"),
 		OllamaModel:      os.Getenv("OLLAMA_MODEL"),
 		AuthorizedGroups: groupIDs,
 	}, nil
