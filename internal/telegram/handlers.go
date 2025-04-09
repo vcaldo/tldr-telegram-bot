@@ -1,17 +1,16 @@
 package telegram
 
 import (
+	"fmt"
 	"log"
+	"strconv"
 	"strings"
 
 	"tldr-telegram-bot/internal/config"
 	"tldr-telegram-bot/internal/db"
-	"tldr-telegram-bot/internal/llm"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
-
-const MAX_MESSAGES = 500
 
 var triggerWords = []string{"resuma", "tldr", "summary", "toguro por favor", "toguro please", "toguro"}
 
@@ -20,12 +19,16 @@ func HandleMessage(update tgbotapi.Update) {
 		return
 	}
 
+	log.Printf("Received message: %s", update.Message.Text)
+
 	if !isAuthorizedGroup(update.Message.Chat.ID) {
 		logUnauthorizedAttempt(update.Message.Chat.ID)
 		return
 	}
 
-	if isTriggerWord(update.Message.ReplyToMessage.Text) {
+	log.Printf("Reply message text: %s", update.Message.ReplyToMessage.Text)
+	if isTriggerWord(update.Message.Text) {
+		log.Printf("Trigger word detected in group %d", update.Message.Chat.ID)
 		collectAndSummarizeMessages(update)
 	}
 }
@@ -82,13 +85,15 @@ func collectAndSummarizeMessages(update tgbotapi.Update) {
 
 	concatenatedText := formatMessages(messages)
 
-	summary, err := llm.Summarize(concatenatedText, myConfig.DefaultLang)
-	if err != nil {
-		log.Printf("Error summarizing messages: %v", err)
-		return
-	}
+	fmt.Println("Concatenated text for summarization:", concatenatedText)
+	// summary, err := llm.Summarize(concatenatedText, myConfig.OllamaModel)
+	// if err != nil {
+	// 	log.Printf("Error summarizing messages: %v", err)
+	// 	return
+	// }
 
-	sendSummary(update.Message.Chat.ID, summary)
+	// sendSummary(update.Message.Chat.ID, summary)
+	sendSummary(update.Message.Chat.ID, fmt.Sprintf("%s - %s", myConfig.OllamaModel, concatenatedText))
 }
 
 func formatMessages(messages []db.Message) string {
@@ -99,13 +104,14 @@ func formatMessages(messages []db.Message) string {
 			if msg.Name != "" {
 				sender = msg.Name
 				if msg.LastName != "" {
-					sender += " " + msg.LastName
+					sender = fmt.Sprintf("%s %s", sender, msg.LastName)
 				}
 			} else {
-				sender = string(msg.UserID)
+				// Fallback to user ID if no name or username is available
+				sender = strconv.FormatInt(msg.UserID, 10)
 			}
 		}
-		sb.WriteString(sender + ": " + msg.Content + "\n")
+		sb.WriteString(fmt.Sprintf("%s: %s\n", sender, msg.Content))
 	}
 	return sb.String()
 }

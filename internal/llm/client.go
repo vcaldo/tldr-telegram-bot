@@ -17,7 +17,7 @@ type OllamaClient struct {
 
 func NewOllamaClient() *OllamaClient {
 	return &OllamaClient{
-		BaseURL:    "http://ollama:11434/api/generate",
+		BaseURL:    os.Getenv("OLLAMA_API_URL"),
 		HTTPClient: &http.Client{Timeout: 10 * time.Second},
 		ModelName:  os.Getenv("OLLAMA_MODEL"),
 	}

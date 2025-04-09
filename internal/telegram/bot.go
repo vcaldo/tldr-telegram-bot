@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"log"
+	"tldr-telegram-bot/internal/db"
 
 	"os"
 
@@ -32,7 +33,7 @@ func NewBot() (*Bot, error) {
 		return nil, err
 	}
 
-	api.Debug = true
+	api.Debug = false
 	log.Printf("Authorized on account %s", api.Self.UserName)
 
 	return &Bot{api: api}, nil
@@ -49,11 +50,34 @@ func (b *Bot) Start() {
 			continue
 		}
 
-		// Handle incoming messages
-		go b.handleMessage(update.Message)
+		// Log incoming messages
+		go b.logMessage(update.Message)
+
+		// handle incoming messages
+		go HandleMessage(update)
 	}
 }
 
-func (b *Bot) handleMessage(message *tgbotapi.Message) {
-	// Logic for handling messages will be implemented here
+func (b *Bot) logMessage(message *tgbotapi.Message) {
+	parsedMsg := db.Message{
+		MessageID: int64(message.MessageID),
+		Timestamp: message.Time(),
+		Name:      message.From.FirstName,
+		LastName:  message.From.LastName,
+		Username:  message.From.UserName,
+		GroupID:   message.Chat.ID,
+		UserID:    message.From.ID,
+		Content:   message.Text,
+	}
+
+	db.InitDB()
+	myDb := db.GetDB()
+	if myDb == nil {
+		log.Println("Database connection is nil")
+		return
+	}
+
+	if err := db.LogMessage(myDb, parsedMsg); err != nil {
+		log.Printf("failed to insert message: %v", err)
+	}
 }

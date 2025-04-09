@@ -14,8 +14,8 @@ services:
 
   ollama:
     image: ollama/ollama:latest
-    env_file:
-      - .env
+    environment:
+      OLLAMA_MODELS: "granite3.2,deepseek-r1"
     ports:
       - "11434:11434"
     restart: unless-stopped
