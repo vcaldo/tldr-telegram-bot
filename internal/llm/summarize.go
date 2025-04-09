@@ -1,14 +1,11 @@
 package llm
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
-	"time"
 )
 
 // Summarize sends a request to the Ollama LLM server and waits until done is true.
@@ -21,9 +18,10 @@ func Summarize(text string, lang string) (string, error) {
 
 	prompt := constructPrompt(text, lang)
 
-	requestBody, err := json.Marshal(map[string]string{
+	requestBody, err := json.Marshal(map[string]interface{}{
 		"model":  model,
 		"prompt": prompt,
+		"stream": false,
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal request body: %v", err)
@@ -39,45 +37,14 @@ func Summarize(text string, lang string) (string, error) {
 		return "", fmt.Errorf("received non-200 response from Ollama API: %s", resp.Status)
 	}
 
-	var summary string
-	scanner := bufio.NewScanner(resp.Body)
-	// Opcional: definir um timeout se necessário
-	done := false
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		var partial map[string]interface{}
-		if err := json.Unmarshal(line, &partial); err != nil {
-			log.Printf("failed to unmarshal chunk: %v", err)
-			continue
-		}
-		log.Printf("Partial response from Ollama API: %v", partial)
-
-		// Atualiza o summary se houver "response"
-		if r, ok := partial["response"].(string); ok {
-			summary = r
-		}
-
-		// Verifica se o processamento foi finalizado.
-		if d, ok := partial["done"].(bool); ok && d {
-			done = true
-			break
-		}
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to decode response: %v", err)
 	}
-
-	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("error reading response: %v", err)
+	summary, ok := result["response"].(string)
+	if !ok {
+		return "", fmt.Errorf("response field not found in the API response")
 	}
-
-	// Se não encontrou summary ou processing não terminou, podemos esperar um pouquinho
-	// ou retornar erro, conforme sua estratégia.
-	if !done {
-		// Pode aguardar um tempo adicional aqui se preferir, por exemplo:
-		time.Sleep(2 * time.Second)
-		if summary == "" {
-			return "", fmt.Errorf("summary not found in response after waiting")
-		}
-	}
-
 	return summary, nil
 }
 
