@@ -12,14 +12,6 @@ services:
       - .env:/root/.env
     restart: unless-stopped
 
-  ollama:
-    image: ollama/ollama:latest
-    environment:
-      OLLAMA_MODELS: "granite3.2,deepseek-r1"
-    ports:
-      - "11434:11434"
-    restart: unless-stopped
-
   postgres:
     image: postgres:latest
     restart: unless-stopped
