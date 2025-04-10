@@ -3,6 +3,7 @@ package telegram
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"tldr-telegram-bot/internal/config"
@@ -12,7 +13,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-var triggerWords = []string{"resuma", "tldr", "summary", "toguro por favor", "toguro please", "toguro"}
+var triggerWords = []string{"resuma", "resume", "tldr", "summary", "toguro por favor", "toguro please", "professor toguro", "professor toguro por favor", "professor toguro please", "toguro", "toguro por favor", "toguro please", "toguro professor", "toguro professor por favor", "toguro professor please"}
 
 func HandleMessage(update tgbotapi.Update) {
 	if update.Message == nil || update.Message.ReplyToMessage == nil {
@@ -83,8 +84,17 @@ func collectAndSummarizeMessages(update tgbotapi.Update) {
 	concatenatedText := formatMessages(messages)
 	concatenatedText = strings.ReplaceAll(concatenatedText, "\n", " ")
 	concatenatedText = strings.TrimSpace(concatenatedText)
-
 	fmt.Println("Concatenated text for summarization:", concatenatedText)
+
+	if os.Getenv("LOCAL_MODEL") != "true" {
+		summary, err := llm.SummarizeGemini(concatenatedText, myConfig.Lang)
+		if err != nil {
+			log.Printf("Error summarizing messages: %v", err)
+			return
+		}
+		sendSummary(update.Message.Chat.ID, summary)
+		return
+	}
 	summary, err := llm.Summarize(concatenatedText, myConfig.Lang)
 	if err != nil {
 		log.Printf("Error summarizing messages: %v", err)
