@@ -32,8 +32,8 @@ func GetMessages(db *sql.DB, messageID int64, groupID int64) ([]Message, error) 
 
 	query := `SELECT message_id, timestamp, name, last_name, username, group_id, user_id, content
 		  FROM messages
-		  WHERE group_id = $1 AND timestamp BETWEEN $2 AND ($2 + interval '10 minutes')
-		  ORDER BY timestamp ASC LIMIT 1000`
+		  WHERE group_id = $1 AND timestamp BETWEEN $2 AND ($2 + interval '30 minutes')
+		  ORDER BY timestamp ASC LIMIT 2000`
 
 	rows, err := db.Query(query, groupID, firstMessageTimestamp)
 	if err != nil {
