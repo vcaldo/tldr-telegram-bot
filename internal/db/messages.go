@@ -64,3 +64,38 @@ func getMessageTimestamp(db *sql.DB, messageID int64, groupID int64) (*time.Time
 	}
 	return &timestamp, nil
 }
+
+// GetMessagesByTimeRange retrieves messages from a given group between start and end timestamps.
+func GetMessagesByTimeRange(db *sql.DB, chatID int64, start, end time.Time) ([]Message, error) {
+	query := `
+		SELECT message_id, timestamp, name, last_name, username, group_id, user_id, content
+		FROM messages
+		WHERE group_id = $1 AND timestamp BETWEEN $2 AND $3
+		ORDER BY timestamp ASC
+	`
+	rows, err := db.Query(query, chatID, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("error querying messages: %w", err)
+	}
+	defer rows.Close()
+
+	var messages []Message
+	for rows.Next() {
+		var msg Message
+		if err := rows.Scan(
+			&msg.MessageID,
+			&msg.Timestamp,
+			&msg.Name,
+			&msg.LastName,
+			&msg.Username,
+			&msg.GroupID,
+			&msg.UserID,
+			&msg.Content,
+		); err != nil {
+			return nil, fmt.Errorf("error scanning row: %w", err)
+		}
+		messages = append(messages, msg)
+	}
+
+	return messages, nil
+}

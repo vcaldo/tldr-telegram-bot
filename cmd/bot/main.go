@@ -33,3 +33,9 @@ func main() {
 	log.Println("Bot started and listening for messages...")
 	bot.Start()
 }
+
+
+cron.AddFunc("0 3 * * *", func() {
+	telegram.RunDailySummary()
+})
+

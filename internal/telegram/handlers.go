@@ -134,3 +134,77 @@ func sendSummary(chatID int64, summary string) {
 		log.Printf("Error sending summary: %v", err)
 	}
 }
+
+func summarizeDay(chatID int64) {
+	myDb := db.GetDB()
+	myConfig, err := config.LoadConfig()
+	if err != nil {
+		log.Printf("Error loading config: %v", err)
+		return
+	}
+
+	loc, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		log.Printf("Error loading time location: %v", err)
+		loc = time.FixedZone("BRT", -3*60*60) // fallback
+	}
+
+	now := time.Now().In(loc)
+	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 3, 0, 0, 0, loc)
+
+	var finalSummary strings.Builder
+
+	for i := 0; i < 8; i++ {
+		from := dayStart.Add(time.Duration(i*3) * time.Hour)
+		to := from.Add(3 * time.Hour)
+
+		messages, err := db.GetMessagesByTimeRange(myDb, chatID, from, to)
+		if err != nil {
+			log.Printf("Error fetching messages for range %s - %s: %v", from.Format("15:04"), to.Format("15:04"), err)
+			continue
+		}
+
+		if len(messages) == 0 {
+			continue // skip empty blocks
+		}
+
+		text := formatMessages(messages)
+		text = strings.ReplaceAll(text, "\n", " ")
+		text = strings.TrimSpace(text)
+
+		var summary string
+		if os.Getenv("LOCAL_MODEL") != "true" {
+			summary, err = llm.SummarizeGemini(text, myConfig.Lang)
+		} else {
+			summary, err = llm.Summarize(text, myConfig.Lang)
+		}
+
+		if err != nil {
+			log.Printf("Error summarizing block %s - %s: %v", from.Format("15:04"), to.Format("15:04"), err)
+			continue
+		}
+
+		finalSummary.WriteString(fmt.Sprintf("🕒 %s - %s\n%s\n\n", from.Format("15:04"), to.Format("15:04"), summary))
+	}
+
+	if finalSummary.Len() > 0 {
+		sendSummary(chatID, finalSummary.String())
+	} else {
+		log.Printf("No content to summarize for group %d", chatID)
+	}
+}
+
+
+
+func RunDailySummary() {
+	myConfig, err := config.LoadConfig()
+	if err != nil {
+		log.Printf("Failed to load config: %v", err)
+		return
+	}
+
+	for _, groupID := range myConfig.AuthorizedGroups {
+		log.Printf("Running daily summary for group: %d", groupID)
+		summarizeDay(groupID)
+	}
+}
